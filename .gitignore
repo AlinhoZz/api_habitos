@@ -1,0 +1,18 @@
+# Não enviar lixo pro build context do container web
+.git
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.log
+
+# envs e editor
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+.venv/
+venv/
