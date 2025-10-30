@@ -12,6 +12,3 @@ Desafio 4 - Sistema de Acompanhamento de Hábitos Saudáveis
 - Danilo Gabriel Diniz e Silva - QA
 - Gabriel Gomes de Andrade - Scrum Master
 - Roberto Henrique Cavalcanti Freitas - PO, Desenvolvedor
-
-
-- 
