@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "5432:5432" 
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -16,21 +16,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   web:
     build:
       context: ./backend
     env_file: .env
-    command: >
-      bash -c "./entrypoint.sh
-      python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
+    restart: unless-stopped
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 volumes:
   pgdata:

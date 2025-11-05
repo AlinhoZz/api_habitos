@@ -16,3 +16,7 @@ __pycache__/
 .idea
 .venv/
 venv/
+
+# artefatos em runtime
+staticfiles/
+media/

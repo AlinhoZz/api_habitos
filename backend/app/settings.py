@@ -6,8 +6,7 @@ import environ
 # Caminhos
 BASE_DIR = Path(__file__).resolve().parent.parent  # .../backend
 
-# Carrega variáveis do .env quando rodar fora do Docker (opcional)
-# .env esperado na raiz do repo: .../fitness-api/.env
+# Carregar .env se existir
 _env_file = BASE_DIR.parent / ".env"
 if _env_file.exists():
     environ.Env.read_env(str(_env_file))
@@ -102,9 +101,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Padrões
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "core.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
+JWT_ALGORITHM = "HS256"
+JWT_ACCESS_TOKEN_LIFETIME_MINUTES = int(
+    os.getenv("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", "60")
+)
