@@ -42,10 +42,12 @@ class JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
-            return None  
+            return None  # Retorna None se o header estiver ausente ou mal formatado.
 
         parts = auth_header.split()
-        if len(parts) != 2 or parts[0] != self.keyword:
+        
+        # Correção para garantir que a comparação seja case-insensitive (boa prática)
+        if len(parts) != 2 or parts[0].lower() != self.keyword.lower():
             return None
 
         token = parts[1]
@@ -64,10 +66,19 @@ class JWTAuthentication(BaseAuthentication):
         user_id = payload.get("sub")
         if not user_id:
             raise exceptions.AuthenticationFailed("Token inválido (sem subject).")
-
+        
         try:
             user = Usuario.objects.get(id=user_id)
         except Usuario.DoesNotExist:
             raise exceptions.AuthenticationFailed("Usuário não encontrado.")
 
         return (user, None)
+
+    def authenticate_header(self, request):
+        """
+        Retorna o cabeçalho WWW-Authenticate.
+        Isso instrui o cliente sobre o esquema de autenticação (Bearer)
+        e garante que o DRF retorne 401 Unauthorized quando authenticate()
+        retorna None (token ausente ou inválido).
+        """
+        return 'Bearer realm="api"'

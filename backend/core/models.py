@@ -15,6 +15,30 @@ class Usuario(models.Model):
     hash_senha = models.TextField()
     criado_em = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def is_authenticated(self):
+        """
+        Retorna sempre True para instâncias de Usuario, pois são usuários logados.
+        Necessário para as permissões do DRF.
+        """
+        return True
+
+    @property
+    def is_active(self):
+        """
+        Geralmente retorna True, a menos que você tenha lógica de desativação.
+        """
+        return True
+    
+    # Opcionais, mas boas práticas:
+    @property
+    def is_staff(self):
+        return False
+
+    @property
+    def is_superuser(self):
+        return False
+
     class Meta:
         managed = False
         db_table = "usuarios"
