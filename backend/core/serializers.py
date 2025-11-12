@@ -29,6 +29,7 @@ class ExercicioSerializer(serializers.ModelSerializer):
 
 
 class SessaoAtividadeSerializer(serializers.ModelSerializer):
+    usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = SessaoAtividade
         fields = [
@@ -79,6 +80,7 @@ class SerieMusculacaoSerializer(serializers.ModelSerializer):
 
 
 class MetaHabitoSerializer(serializers.ModelSerializer):
+    usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = MetaHabito
         fields = [
@@ -98,6 +100,7 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
 
 
 class MarcacaoHabitoSerializer(serializers.ModelSerializer):
+    usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = MarcacaoHabito
         fields = [

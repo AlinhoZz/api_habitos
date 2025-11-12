@@ -123,19 +123,21 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["modalidade", "observacoes"]
 
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+         
+    def perform_update(self, serializer):
+        serializer.save(usuario=self.request.user)
+        
     def get_queryset(self):
         request = cast(Request, self.request)
 
         qs = (
             SessaoAtividade.objects.select_related("usuario")
-            .all()
+            .filter(usuario=request.user)
             .order_by("-inicio_em")
         )
-
-        usuario_id = request.query_params.get("usuario_id")
-        if usuario_id:
-            qs = qs.filter(usuario_id=usuario_id)
-
+        
         modalidade = request.query_params.get("modalidade")
         if modalidade:
             qs = qs.filter(modalidade=modalidade)
@@ -160,16 +162,18 @@ class SerieMusculacaoViewSet(viewsets.ModelViewSet):
 
 class MetaHabitoViewSet(viewsets.ModelViewSet):
     serializer_class = MetaHabitoSerializer
-
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+    def perform_update(self, serializer):
+        serializer.save(usuario=self.request.user)
     def get_queryset(self):
         request = cast(Request, self.request)
 
-        qs = MetaHabito.objects.select_related("usuario").all()
-
-        usuario_id = request.query_params.get("usuario_id")
-        if usuario_id:
-            qs = qs.filter(usuario_id=usuario_id)
-
+        qs = (
+            MetaHabito.objects.select_related("usuario")
+            .filter(usuario=request.user)
+        )
+        
         ativo_param = request.query_params.get("ativo")
         if ativo_param in {"true", "false", "1", "0"}:
             ativo = ativo_param.lower() in {"true", "1"}
@@ -181,18 +185,20 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
 class MarcacaoHabitoViewSet(viewsets.ModelViewSet):
     serializer_class = MarcacaoHabitoSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(usuario=self.request.user)
+
     def get_queryset(self):
         request = cast(Request, self.request)
-
+            
         qs = MarcacaoHabito.objects.select_related(
             "meta",
             "usuario",
             "sessao",
-        ).all()
-
-        usuario_id = request.query_params.get("usuario_id")
-        if usuario_id:
-            qs = qs.filter(usuario_id=usuario_id)
+        ).filter(usuario=request.user)
 
         meta_id = request.query_params.get("meta_id")
         if meta_id:
