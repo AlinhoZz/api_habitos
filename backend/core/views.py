@@ -181,3 +181,15 @@ class MarcacaoHabitoViewSet(viewsets.ModelViewSet):
             qs = qs.filter(meta_id=meta_id)
 
         return qs
+
+class MeView(APIView):
+    """
+    Retorna os dados do usuário autenticado.
+    GET /auth/me/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = request.user  # vem do JWTAuthentication
+        serializer = UsuarioSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
