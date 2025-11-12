@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 
 from .authentication import create_jwt_for_user
 from .models import (
@@ -20,6 +21,7 @@ from .models import (
 )
 from .serializers import (
     UsuarioSerializer,
+    ChangePasswordSerializer,
     ExercicioSerializer,
     SessaoAtividadeSerializer,
     MetricasCorridaSerializer,
@@ -85,6 +87,22 @@ class LoginView(APIView):
             "access_token": token,
         }
         return Response(data, status=status.HTTP_200_OK)
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def patch(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data, 
+            context={'request': request}
+        )
+        
+        if serializer.is_valid(raise_exception=True):
+            
+            response_data = {
+                "detail": "Senha alterada com sucesso",
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by("id")

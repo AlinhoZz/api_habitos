@@ -153,3 +153,36 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer para a troca de senha do usuário autenticado."""
+
+    senha_atual = serializers.CharField(required=True, write_only=True)
+    nova_senha = serializers.CharField(required=True, write_only=True, min_length=6)
+    nova_senha_confirmacao = serializers.CharField(required=True, write_only=True)
+    
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        if not check_password(data.get('senha_atual'), user.hash_senha):
+            raise serializers.ValidationError(
+                {"senha_atual": "A senha atual fornecida está incorreta."}
+            )
+        
+        if data.get('nova_senha') != data.get('nova_senha_confirmacao'):
+            raise serializers.ValidationError(
+                {"nova_senha_confirmacao": "As novas senhas não coincidem."}
+            )
+
+        return data
+    
+    def save(self):
+        user = self.context['request'].user
+        nova_senha = self.validated_data['nova_senha']
+        
+        # Usa make_password para gerar o hash seguro da nova senha
+        user.hash_senha = make_password(nova_senha)
+        user.save()
+        
+        return user
