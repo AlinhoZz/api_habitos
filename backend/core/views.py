@@ -39,7 +39,6 @@ def healthz(request):
     """
     return JsonResponse({"status": "ok"})
 
-
 class RegisterView(APIView):
     """
     Registro de novo usuário.
@@ -86,7 +85,6 @@ class LoginView(APIView):
             "access_token": token,
         }
         return Response(data, status=status.HTTP_200_OK)
-
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.all().order_by("id")
