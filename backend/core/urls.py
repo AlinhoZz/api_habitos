@@ -14,6 +14,7 @@ from .views import (
     RegisterView,
     LoginView,
     ChangePasswordView,
+    MeView,
 )
 
 router = DefaultRouter()
