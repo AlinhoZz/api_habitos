@@ -13,6 +13,7 @@ from .views import (
     MarcacaoHabitoViewSet,
     RegisterView,
     LoginView,
+    ChangePasswordView,
 )
 
 router = DefaultRouter()
@@ -30,4 +31,5 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/", include(router.urls)),
+    path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
 ]
