@@ -179,6 +179,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     
     def save(self):
         user = self.context['request'].user
+        assert isinstance(self.validated_data, dict)
         nova_senha = self.validated_data['nova_senha']
         
         # Usa make_password para gerar o hash seguro da nova senha

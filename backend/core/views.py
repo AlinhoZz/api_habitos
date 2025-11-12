@@ -98,7 +98,7 @@ class ChangePasswordView(APIView):
         )
         
         if serializer.is_valid(raise_exception=True):
-            
+            serializer.save()
             response_data = {
                 "detail": "Senha alterada com sucesso",
             }
