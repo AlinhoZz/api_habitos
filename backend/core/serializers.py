@@ -170,7 +170,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         
         if not check_password(data.get('senha_atual'), user.hash_senha):
             raise serializers.ValidationError(
-                {"senha_atual": "A senha atual fornecida está incorreta."}
+                "A senha atual fornecida está incorreta. Não foi possível alterar a senha."
             )
         
         if data.get('nova_senha') != data.get('nova_senha_confirmacao'):
