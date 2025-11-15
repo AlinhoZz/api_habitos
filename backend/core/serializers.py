@@ -78,7 +78,7 @@ class SerieMusculacaoSerializer(serializers.ModelSerializer):
             "carga_kg",
         ]
 
-
+# =================== Meta Hábito =======================
 class MetaHabitoSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
@@ -98,6 +98,22 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
             "criado_em",
         ]
 
+    def validate(self, data):
+        # Para PUT/PATCH, se o campo não estiver no 'data', usa o valor existente (self.instance)
+        is_update = self.instance is not None
+        
+        # Recupera data_inicio e data_fim, priorizando o dado do 'data' ou o valor existente (self.instance)
+        data_inicio = data.get('data_inicio', self.instance.data_inicio if is_update else None)
+        data_fim = data.get('data_fim', self.instance.data_fim if is_update else None)
+        
+        # Valida se data_fim é menor que data_inicio
+        if data_inicio and data_fim and data_fim < data_inicio:
+            raise serializers.ValidationError(
+                {"data_fim": "A data final do hábito não pode ser anterior à data de início."}
+            )
+            
+        return data
+# =================== Carlos e Abelardo =====================
 
 class MarcacaoHabitoSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
