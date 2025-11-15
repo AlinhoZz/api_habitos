@@ -180,6 +180,13 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
             qs = qs.filter(ativo=ativo)
 
         return qs
+    
+    def perform_destroy(self, instance):
+        if instance.marcacoes.exists():
+            instance.ativo = False
+            instance.save()
+        else:
+            instance.delete()
 
 
 class MarcacaoHabitoViewSet(viewsets.ModelViewSet):
