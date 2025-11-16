@@ -191,10 +191,14 @@ class SerieMusculacaoViewSet(viewsets.ModelViewSet):
 
 class MetaHabitoViewSet(viewsets.ModelViewSet):
     serializer_class = MetaHabitoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
     def perform_create(self, serializer):
         serializer.save(usuario=self.request.user)
+
     def perform_update(self, serializer):
         serializer.save(usuario=self.request.user)
+
     def get_queryset(self):
         request = cast(Request, self.request)
 
@@ -210,12 +214,18 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
 
         return qs
     
-    def perform_destroy(self, instance):
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
         if instance.marcacoes.exists():
             instance.ativo = False
             instance.save()
+            message = "Meta encerrada (desativada), pois já possui um histórico de marcações."
         else:
             instance.delete()
+            message = "Meta permanentemente excluída, pois não possuía histórico."
+
+        return Response({"detail": message}, status=status.HTTP_200_OK)
 
 
 class MarcacaoHabitoViewSet(viewsets.ModelViewSet):
