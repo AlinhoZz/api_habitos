@@ -27,6 +27,7 @@ class ExercicioSerializer(serializers.ModelSerializer):
         model = Exercicio
         fields = ["id", "nome", "grupo_muscular", "equipamento"]
 
+# =================== Danilo e Alisson =====================
 
 class SessaoAtividadeSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)

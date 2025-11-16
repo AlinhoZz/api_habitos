@@ -139,10 +139,31 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
             .filter(usuario=request.user)
             .order_by("-inicio_em")
         )
-        
+
+        # Filtro por modalidade (corrida, ciclismo, musculacao)
         modalidade = request.query_params.get("modalidade")
         if modalidade:
             qs = qs.filter(modalidade=modalidade)
+
+        # Filtro por intervalo de datas (campo inicio_em, mas filtrando por data)
+        data_inicio_str = request.query_params.get("inicio_em_inicio")
+        data_fim_str = request.query_params.get("inicio_em_fim")
+
+        if data_inicio_str:
+            data_inicio = parse_date(data_inicio_str)
+            if not data_inicio:
+                raise ValidationError(
+                    {"inicio_em_inicio": "Data inválida. Use o formato AAAA-MM-DD."}
+                )
+            qs = qs.filter(inicio_em__date__gte=data_inicio)
+
+        if data_fim_str:
+            data_fim = parse_date(data_fim_str)
+            if not data_fim:
+                raise ValidationError(
+                    {"inicio_em_fim": "Data inválida. Use o formato AAAA-MM-DD."}
+                )
+            qs = qs.filter(inicio_em__date__lte=data_fim)
 
         return qs
 
