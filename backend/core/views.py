@@ -1,12 +1,14 @@
 from typing import Any, cast
 
 from django.http import JsonResponse
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+
 
 from .authentication import create_jwt_for_user
 from .models import (
@@ -137,13 +139,40 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
             .filter(usuario=request.user)
             .order_by("-inicio_em")
         )
-        
+
         modalidade = request.query_params.get("modalidade")
         if modalidade:
             qs = qs.filter(modalidade=modalidade)
 
+        data_inicio_str = request.query_params.get("inicio_em_inicio")
+        data_fim_str = request.query_params.get("inicio_em_fim")
+
+        if data_inicio_str:
+            data_inicio = parse_date(data_inicio_str)
+            if not data_inicio:
+                raise ValidationError(
+                    {"inicio_em_inicio": "Data inválida. Use o formato AAAA-MM-DD."}
+                )
+            qs = qs.filter(inicio_em__date__gte=data_inicio)
+
+        if data_fim_str:
+            data_fim = parse_date(data_fim_str)
+            if not data_fim:
+                raise ValidationError(
+                    {"inicio_em_fim": "Data inválida. Use o formato AAAA-MM-DD."}
+                )
+            qs = qs.filter(inicio_em__date__lte=data_fim)
+
         return qs
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+
+        return Response(
+            {"detail": "Sessão excluída com sucesso."},
+            status=status.HTTP_200_OK,
+        )
 
 class MetricasCorridaViewSet(viewsets.ModelViewSet):
     queryset = MetricasCorrida.objects.select_related("sessao").all()
