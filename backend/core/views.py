@@ -140,12 +140,10 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
             .order_by("-inicio_em")
         )
 
-        # Filtro por modalidade (corrida, ciclismo, musculacao)
         modalidade = request.query_params.get("modalidade")
         if modalidade:
             qs = qs.filter(modalidade=modalidade)
 
-        # Filtro por intervalo de datas (campo inicio_em, mas filtrando por data)
         data_inicio_str = request.query_params.get("inicio_em_inicio")
         data_fim_str = request.query_params.get("inicio_em_fim")
 
