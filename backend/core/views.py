@@ -165,6 +165,14 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+
+        return Response(
+            {"detail": "Sessão excluída com sucesso."},
+            status=status.HTTP_200_OK,
+        )
 
 class MetricasCorridaViewSet(viewsets.ModelViewSet):
     queryset = MetricasCorrida.objects.select_related("sessao").all()
