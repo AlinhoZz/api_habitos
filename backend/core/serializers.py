@@ -137,7 +137,9 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
 # =================== Carlos e Abelardo =====================
 
 class MarcacaoHabitoSerializer(serializers.ModelSerializer):
+    # Usuario sempre vem do request, nunca do body
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = MarcacaoHabito
         fields = [
@@ -150,6 +152,43 @@ class MarcacaoHabitoSerializer(serializers.ModelSerializer):
             "criado_em",
         ]
 
+    def validate(self, attrs):
+        
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        meta = attrs.get("meta") or getattr(self.instance, "meta", None)
+        data = attrs.get("data") or getattr(self.instance, "data", None)
+        sessao = attrs.get("sessao") or getattr(self.instance, "sessao", None)
+
+        if not user or not meta or not data:
+            return attrs
+
+        # 1) Meta precisa ser do usuário logado
+        if meta.usuario_id != user.id:
+            raise serializers.ValidationError(
+                {"meta": "Você só pode marcar dias de metas que são suas."}
+            )
+
+        # 2) Se houver sessão, também precisa ser do usuário logado
+        if sessao and sessao.usuario_id != user.id:
+            raise serializers.ValidationError(
+                {"sessao": "Você só pode vincular sessões que são suas."}
+            )
+
+        # 3) Respeitar unique_together (meta, data)
+        qs = MarcacaoHabito.objects.filter(meta=meta, data=data)
+
+        # Se for update, ignora a própria instância
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError(
+                {"data": "Já existe uma marcação para essa meta nesse dia."}
+            )
+
+        return attrs
 
 # ---------- SERIALIZERS DE AUTENTICAÇÃO ----------
 
