@@ -350,7 +350,15 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
         serializer.save(usuario=self.request.user)
 
     def perform_update(self, serializer):
-        serializer.save(usuario=self.request.user)
+        dados_recebidos = serializer.validated_data
+        
+        novo_status_ativo = dados_recebidos.get('ativo')
+
+        if novo_status_ativo is True and 'data_fim' not in dados_recebidos:
+            serializer.save(usuario=self.request.user, data_fim=None)
+        
+        else:
+            serializer.save(usuario=self.request.user)
 
     @action(detail=True, methods=['patch'])
     def encerrar(self, request, pk=None):
