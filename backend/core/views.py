@@ -9,6 +9,9 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 
+from datetime import datetime, timedelta, timezone
+import jwt
+from django.conf import settings
 
 from .authentication import create_jwt_for_user
 from .models import (
@@ -36,6 +39,50 @@ from .serializers import (
     UsuarioUpdateSerializer,
 )
 
+REFRESH_TOKEN_LIFETIME_DAYS = 7
+
+
+def create_refresh_token(user: Usuario) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user.id),
+        "type": "refresh",
+        "iat": now,
+        "exp": now + timedelta(days=REFRESH_TOKEN_LIFETIME_DAYS),
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
+    return token
+
+
+def decode_refresh_token(refresh_token: str) -> Usuario:
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+        )
+    except jwt.ExpiredSignatureError:
+        raise ValidationError("Refresh token expirado.")
+    except jwt.InvalidTokenError as exc:
+        raise ValidationError(f"Refresh token inválido: {exc}")
+
+    if payload.get("type") != "refresh":
+        raise ValidationError("Tipo de token inválido para refresh.")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise ValidationError("Refresh token sem usuário associado.")
+
+    try:
+        user = Usuario.objects.get(pk=int(user_id))
+    except Usuario.DoesNotExist:
+        raise ValidationError("Usuário não encontrado para este refresh token.")
+
+    return user
+
+
 
 def healthz(request):
     """
@@ -56,13 +103,16 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = cast(Usuario, serializer.save())
-        token = create_jwt_for_user(user)
+        access_token = create_jwt_for_user(user)
+        refresh_token = create_refresh_token(user)
 
         data = {
             "user": UsuarioSerializer(user).data,
-            "access_token": token,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
         }
         return Response(data, status=status.HTTP_201_CREATED)
+
 
 
 class LoginView(APIView):
@@ -83,11 +133,32 @@ class LoginView(APIView):
             raise ValidationError("Credenciais inválidas.")
 
         user: Usuario = user_obj
-        token = create_jwt_for_user(user)
+        access_token = create_jwt_for_user(user)
+        refresh_token = create_refresh_token(user)
 
         data = {
             "user": UsuarioSerializer(user).data,
-            "access_token": token,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+class RefreshTokenView(APIView):
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request: Request) -> Response:
+        refresh_token = request.data.get("refresh_token")
+
+        if not refresh_token:
+            raise ValidationError({"refresh_token": "Este campo é obrigatório."})
+
+        user = decode_refresh_token(refresh_token)
+
+        new_access_token = create_jwt_for_user(user)
+
+        data = {
+            "access_token": new_access_token,
         }
         return Response(data, status=status.HTTP_200_OK)
 
