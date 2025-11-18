@@ -166,7 +166,30 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
         return qs
 
     def destroy(self, request, *args, **kwargs):
+        """
+        Regra de negócio para DELETE de sessão:
+        - Se a sessão tiver métricas de corrida, de ciclismo, séries de musculação
+          ou marcações de hábito associadas, o DELETE é bloqueado.
+        - O usuário precisa remover/ajustar esses dados antes.
+        """
         instance = self.get_object()
+
+        tem_metricas_corrida = hasattr(instance, "metricas_corrida")
+        tem_metricas_ciclismo = hasattr(instance, "metricas_ciclismo")
+        tem_series = instance.series_musculacao.exists()
+        tem_marcacoes = instance.marcacoes.exists()
+
+        if tem_metricas_corrida or tem_metricas_ciclismo or tem_series or tem_marcacoes:
+            return Response(
+                {
+                    "detail": (
+                        "Não é possível excluir a sessão pois existem dados associados "
+                        "(métricas, séries ou marcações de hábito). "
+                        "Remova ou ajuste esses dados antes de excluir a sessão."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         self.perform_destroy(instance)
 
         return Response(
@@ -177,12 +200,26 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
 class MetricasCorridaViewSet(viewsets.ModelViewSet):
     queryset = MetricasCorrida.objects.select_related("sessao").all()
     serializer_class = MetricasCorridaSerializer
-
+    
+    def get_queryset(self):
+        request = cast(Request, self.request)
+        return (
+            MetricasCorrida.objects
+            .select_related("sessao")
+            .filter(sessao__usuario=request.user)
+        )
 
 class MetricasCiclismoViewSet(viewsets.ModelViewSet):
     queryset = MetricasCiclismo.objects.select_related("sessao").all()
     serializer_class = MetricasCiclismoSerializer
-
+    
+    def get_queryset(self):
+            request = cast(Request, self.request)
+            return (
+                MetricasCiclismo.objects
+                .select_related("sessao")
+                .filter(sessao__usuario=request.user)
+            )
 
 class SerieMusculacaoViewSet(viewsets.ModelViewSet):
     queryset = SerieMusculacao.objects.select_related("sessao", "exercicio").all()
