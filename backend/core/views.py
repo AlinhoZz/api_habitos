@@ -2,14 +2,16 @@ from typing import Any, cast
 
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
+from django.utils import timezone
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import jwt
 from django.conf import settings
 
@@ -43,7 +45,7 @@ REFRESH_TOKEN_LIFETIME_DAYS = 7
 
 
 def create_refresh_token(user: Usuario) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     payload = {
         "sub": str(user.id),
         "type": "refresh",
@@ -350,18 +352,32 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(usuario=self.request.user)
 
+    @action(detail=True, methods=['patch'])
+    def encerrar(self, request, pk=None):
+        instance = self.get_object() 
+        hoje = timezone.now().date()
+
+        instance.ativo = False
+
+        if instance.data_inicio is None or hoje >= instance.data_inicio:
+            instance.data_fim = hoje
+            
+        instance.save() 
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_queryset(self):
         request = cast(Request, self.request)
+        qs = MetaHabito.objects.select_related("usuario").filter(usuario=request.user)
 
-        qs = (
-            MetaHabito.objects.select_related("usuario")
-            .filter(usuario=request.user)
-        )
-        
-        ativo_param = request.query_params.get("ativo")
-        if ativo_param in {"true", "false", "1", "0"}:
-            ativo = ativo_param.lower() in {"true", "1"}
-            qs = qs.filter(ativo=ativo)
+        if self.action == 'list':
+            ativo_param = request.query_params.get("ativo")
+
+            if ativo_param in {"false", "0"}:
+                qs = qs.filter(ativo=False)
+            else:
+                qs = qs.filter(ativo=True)
 
         return qs
     
