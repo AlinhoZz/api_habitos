@@ -211,8 +211,8 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
     def validate(self, data):
         is_update = self.instance is not None
         
-        data_inicio = data.get('data_inicio', self.instance.data_inicio if is_update else None)
-        data_fim = data.get('data_fim', self.instance.data_fim if is_update else None)
+        data_inicio = data.get('data_inicio', self.instance.data_inicio if is_update else None) 
+        data_fim = data.get('data_fim', self.instance.data_fim if is_update else None) 
         
         if data_inicio and data_fim and data_fim < data_inicio:
             raise serializers.ValidationError(
