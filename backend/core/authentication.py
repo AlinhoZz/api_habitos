@@ -9,11 +9,9 @@ from .models import Usuario
 
 
 def create_jwt_for_user(user: Usuario) -> str:
-    """
-    Cria um token JWT simples contendo o ID e o e-mail do usuário.
-    """
+
     now = datetime.now(timezone.utc)
-    lifetime_minutes = getattr(settings, "JWT_ACCESS_TOKEN_LIFETIME_MINUTES", 60)
+    lifetime_minutes = getattr(settings, "JWT_ACCESS_TOKEN_LIFETIME_MINUTES", 15)
     exp = now + timedelta(minutes=lifetime_minutes)
 
     payload = {
@@ -32,21 +30,16 @@ def create_jwt_for_user(user: Usuario) -> str:
 
 
 class JWTAuthentication(BaseAuthentication):
-    """
-    Autenticação baseada em JWT usando o header:
-    Authorization: Bearer <token>
-    """
 
     keyword = "Bearer"
 
     def authenticate(self, request):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
-            return None  # Retorna None se o header estiver ausente ou mal formatado.
+            return None 
 
         parts = auth_header.split()
-        
-        # Correção para garantir que a comparação seja case-insensitive (boa prática)
+
         if len(parts) != 2 or parts[0].lower() != self.keyword.lower():
             return None
 
@@ -75,10 +68,5 @@ class JWTAuthentication(BaseAuthentication):
         return (user, None)
 
     def authenticate_header(self, request):
-        """
-        Retorna o cabeçalho WWW-Authenticate.
-        Isso instrui o cliente sobre o esquema de autenticação (Bearer)
-        e garante que o DRF retorne 401 Unauthorized quando authenticate()
-        retorna None (token ausente ou inválido).
-        """
+
         return 'Bearer realm="api"'

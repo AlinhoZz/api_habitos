@@ -15,6 +15,7 @@ from .views import (
     LoginView,
     ChangePasswordView,
     MeView,
+    RefreshTokenView,
 )
 
 router = DefaultRouter()
@@ -33,5 +34,6 @@ urlpatterns = [
     path("auth/login/", LoginView.as_view(), name="auth-login"),
     path("auth/me/", MeView.as_view(), name="auth-me"),
     path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("auth/refresh/", RefreshTokenView.as_view(), name="auth-refresh"),
     path("api/", include(router.urls)),
 ]
