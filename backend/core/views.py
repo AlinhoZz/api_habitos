@@ -177,12 +177,26 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
 class MetricasCorridaViewSet(viewsets.ModelViewSet):
     queryset = MetricasCorrida.objects.select_related("sessao").all()
     serializer_class = MetricasCorridaSerializer
-
+    
+    def get_queryset(self):
+        request = cast(Request, self.request)
+        return (
+            MetricasCorrida.objects
+            .select_related("sessao")
+            .filter(sessao__usuario=request.user)
+        )
 
 class MetricasCiclismoViewSet(viewsets.ModelViewSet):
     queryset = MetricasCiclismo.objects.select_related("sessao").all()
     serializer_class = MetricasCiclismoSerializer
-
+    
+    def get_queryset(self):
+            request = cast(Request, self.request)
+            return (
+                MetricasCiclismo.objects
+                .select_related("sessao")
+                .filter(sessao__usuario=request.user)
+            )
 
 class SerieMusculacaoViewSet(viewsets.ModelViewSet):
     queryset = SerieMusculacao.objects.select_related("sessao", "exercicio").all()

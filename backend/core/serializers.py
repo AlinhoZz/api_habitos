@@ -10,6 +10,7 @@ from .models import (
     SerieMusculacao,
     MetaHabito,
     MarcacaoHabito,
+    ModalidadeChoices,
 )
 
 
@@ -64,7 +65,26 @@ class MetricasCorridaSerializer(serializers.ModelSerializer):
             "fc_media",
         ]
 
+    def validate_sessao(self, sessao):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
 
+        if user is None or not user.is_authenticated:
+            return sessao
+
+        if sessao.usuario != user:
+            raise serializers.ValidationError(
+                "Você não pode registrar métricas para sessões de outro usuário."
+            )
+
+        if sessao.modalidade != ModalidadeChoices.CORRIDA:
+            raise serializers.ValidationError(
+                "A sessão associada deve ser de modalidade corrida."
+            )
+
+        return sessao
+
+    
 class MetricasCiclismoSerializer(serializers.ModelSerializer):
     class Meta:
         model = MetricasCiclismo
@@ -75,6 +95,24 @@ class MetricasCiclismoSerializer(serializers.ModelSerializer):
             "fc_media",
         ]
 
+    def validate_sessao(self, sessao):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        if user is None or not user.is_authenticated:
+            return sessao
+
+        if sessao.usuario != user:
+            raise serializers.ValidationError(
+                "Você não pode registrar métricas para sessões de outro usuário."
+            )
+
+        if sessao.modalidade != ModalidadeChoices.CICLISMO:
+            raise serializers.ValidationError(
+                "A sessão associada deve ser de modalidade ciclismo."
+            )
+
+        return sessao
 
 class SerieMusculacaoSerializer(serializers.ModelSerializer):
     class Meta:
