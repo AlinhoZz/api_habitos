@@ -125,7 +125,69 @@ class SerieMusculacaoSerializer(serializers.ModelSerializer):
             "repeticoes",
             "carga_kg",
         ]
+    def validate_sessao(self, sessao):
 
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        if user is None or not user.is_authenticated:
+            return sessao
+
+        if sessao.usuario_id != user.id:
+            raise serializers.ValidationError(
+                "Você não pode criar séries em sessões de outro usuário."
+            )
+
+        if sessao.modalidade != ModalidadeChoices.MUSCULACAO:
+            raise serializers.ValidationError(
+                "A sessão associada deve ser de modalidade musculação."
+            )
+
+        return sessao
+
+    def validate(self, attrs):
+        instance = self.instance
+
+        sessao = attrs.get("sessao") or getattr(instance, "sessao", None)
+        ordem_serie = attrs.get("ordem_serie") or getattr(instance, "ordem_serie", None)
+
+        if sessao is None or ordem_serie is None:
+            return attrs
+
+        if ordem_serie < 1:
+            raise serializers.ValidationError(
+                {"ordem_serie": "A ordem da série deve ser um número inteiro maior ou igual a 1."}
+            )
+
+        qs = SerieMusculacao.objects.filter(
+            sessao=sessao,
+            ordem_serie=ordem_serie,
+        )
+
+        if instance is not None:
+            qs = qs.exclude(pk=instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError(
+                {"ordem_serie": "Já existe uma série com essa ordem nessa sessão."}
+            )
+
+        return attrs
+
+    def create(self, validated_data):
+        if "ordem_serie" not in validated_data or validated_data["ordem_serie"] is None:
+            sessao = validated_data["sessao"]
+            ultima = (
+                SerieMusculacao.objects
+                .filter(sessao=sessao)
+                .order_by("-ordem_serie")
+                .first()
+            )
+            proxima_ordem = (ultima.ordem_serie if ultima else 0) + 1
+            validated_data["ordem_serie"] = proxima_ordem
+
+        return super().create(validated_data)
+    
 # =================== Meta Hábito =======================
 class MetaHabitoSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)

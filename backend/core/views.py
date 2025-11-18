@@ -114,8 +114,9 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
 
 class ExercicioViewSet(viewsets.ModelViewSet):
-    queryset = Exercicio.objects.all().order_by("id")
+    queryset = Exercicio.objects.all().order_by("nome")
     serializer_class = ExercicioSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ["nome", "grupo_muscular", "equipamento"]
 
@@ -222,9 +223,50 @@ class MetricasCiclismoViewSet(viewsets.ModelViewSet):
             )
 
 class SerieMusculacaoViewSet(viewsets.ModelViewSet):
-    queryset = SerieMusculacao.objects.select_related("sessao", "exercicio").all()
     serializer_class = SerieMusculacaoSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["exercicio__nome"]
 
+    def get_queryset(self):
+        request = cast(Request, self.request)
+
+        qs = (
+            SerieMusculacao.objects
+            .select_related("sessao", "exercicio")
+            .filter(sessao__usuario=request.user)
+            .order_by("sessao_id", "ordem_serie", "id")
+        )
+
+        sessao_id = request.query_params.get("sessao_id")
+        if sessao_id:
+            qs = qs.filter(sessao_id=sessao_id)
+
+        exercicio_id = request.query_params.get("exercicio_id")
+        if exercicio_id:
+            qs = qs.filter(exercicio_id=exercicio_id)
+
+        return qs
+
+    def destroy(self, request, *args, **kwargs):
+
+        instance = self.get_object()
+        sessao = instance.sessao
+
+        response = super().destroy(request, *args, **kwargs)
+
+        series = (
+            SerieMusculacao.objects
+            .filter(sessao=sessao)
+            .order_by("ordem_serie", "id")
+        )
+
+        for idx, serie in enumerate(series, start=1):
+            if serie.ordem_serie != idx:
+                serie.ordem_serie = idx
+                serie.save(update_fields=["ordem_serie"])
+
+        return response
 
 class MetaHabitoViewSet(viewsets.ModelViewSet):
     serializer_class = MetaHabitoSerializer
