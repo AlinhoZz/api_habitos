@@ -33,6 +33,7 @@ from .serializers import (
     MarcacaoHabitoSerializer,
     RegisterSerializer,
     LoginSerializer,
+    UsuarioUpdateSerializer,
 )
 
 
@@ -372,3 +373,26 @@ class MeView(APIView):
         user = request.user  # vem do JWTAuthentication
         serializer = UsuarioSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def patch(self, request: Request) -> Response:
+        user = request.user
+        
+        serializer = UsuarioUpdateSerializer(
+            user, 
+            data=request.data, 
+            partial=True, 
+            context={'request': request}
+        )
+        
+        serializer.is_valid(raise_exception=True)
+        updated_user = serializer.save()
+        
+        read_serializer = UsuarioSerializer(updated_user)
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request: Request) -> Response:
+        user = request.user
+        
+        user.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
