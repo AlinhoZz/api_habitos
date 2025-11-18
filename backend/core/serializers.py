@@ -366,3 +366,29 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.save()
         
         return user
+    
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False)
+    nome = serializers.CharField(max_length=120, required=False)
+
+    class Meta:
+        model = Usuario
+        fields = ["nome", "email"]
+
+    def validate_email(self, value):
+        user = self.context['request'].user
+        
+        email_normalizado = value.lower()
+
+        query = Usuario.objects.filter(email__iexact=email_normalizado).exclude(pk=user.pk)
+
+        if query.exists():
+            raise serializers.ValidationError("Este e-mail já está em uso por outro usuário.")
+        
+        return email_normalizado
+
+    def update(self, instance, validated_data):
+        instance.nome = validated_data.get('nome', instance.nome)
+        instance.email = validated_data.get('email', instance.email)
+        instance.save()
+        return instance    
