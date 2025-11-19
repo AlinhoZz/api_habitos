@@ -1,5 +1,6 @@
 from typing import Any, cast
 
+from django.utils import timezone
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
@@ -350,28 +351,21 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
         serializer.save(usuario=self.request.user)
 
     def perform_update(self, serializer):
-        dados_recebidos = serializer.validated_data
-        
+        dados_recebidos = serializer.validated_data 
         novo_status_ativo = dados_recebidos.get('ativo')
-
         if novo_status_ativo is True and 'data_fim' not in dados_recebidos:
             serializer.save(usuario=self.request.user, data_fim=None)
-        
         else:
-            serializer.save(usuario=self.request.user)
+            serializer.save(usuario=self.request.user)     
 
     @action(detail=True, methods=['patch'])
     def encerrar(self, request, pk=None):
         instance = self.get_object() 
         hoje = timezone.now().date()
-
         instance.ativo = False
-
         if instance.data_inicio is None or hoje >= instance.data_inicio:
             instance.data_fim = hoje
-            
         instance.save() 
-
         serializer = self.get_serializer(instance)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -389,6 +383,76 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
 
         return qs
     
+    @action(detail=True, methods=['get'])
+    def historico(self, request, pk=None):
+        meta = self.get_object()
+        data_inicio_str = request.query_params.get('data_inicio')
+        data_fim_str = request.query_params.get('data_fim')
+
+        marcacoes = meta.marcacoes.all().order_by('data')
+
+        if data_inicio_str:
+            data_inicio = parse_date(data_inicio_str)
+            if data_inicio:
+                marcacoes = marcacoes.filter(data__gte=data_inicio)
+        
+        if data_fim_str:
+            data_fim = parse_date(data_fim_str)
+            if data_fim:
+                marcacoes = marcacoes.filter(data__lte=data_fim)
+
+        serializer = MarcacaoHabitoSerializer(marcacoes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def streaks(self, request, pk=None):
+        meta = self.get_object()   
+        datas_concluidas = (
+            meta.marcacoes
+            .filter(concluido=True)
+            .order_by('data')
+            .values_list('data', flat=True)
+            .distinct()
+        )     
+        datas = list(datas_concluidas)
+
+        if not datas:
+            return Response({'streak_atual': 0, 'streak_maximo': 0})
+        
+        streak_maximo = 0
+        current_run = 0
+
+        ultima_data_processada = None
+
+        for data in datas:
+            if ultima_data_processada is None:
+                current_run = 1
+            elif data == ultima_data_processada + timedelta(days=1):
+                current_run += 1
+            else:
+                streak_maximo = max(streak_maximo, current_run)
+                current_run = 1
+        ultima_data_processada = data
+
+        streak_maximo = max(streak_maximo, current_run)
+
+        streak_atual = 0
+        hoje = timezone.now().date()
+        ultima_data_registrada = datas[-1]
+
+        if ultima_data_registrada == hoje or ultima_data_registrada == hoje - timedelta(days=1):
+            streak_atual = 1
+            for i in range(len(datas) - 2, -1, -1):
+                if datas[i+1] == datas[i] + timedelta(days=1):
+                    streak_atual += 1
+                else:
+                    break      
+
+        return Response({
+            'streak_atual': streak_atual,
+            'streak_maximo': streak_maximo
+        })
+ 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
