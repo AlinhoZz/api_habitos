@@ -3,6 +3,7 @@ from typing import Any, cast
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from django.db.models import Sum, Avg, Count
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -491,3 +492,65 @@ class MeView(APIView):
         user.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class DashboardResumoView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        try:
+            dias = int(request.query_params.get("dias", 30))
+            if dias < 1:
+                dias = 30
+        except ValueError:
+            dias = 30
+
+        data_limite = timezone.now() - timedelta(days=dias)
+        qs_base = SessaoAtividade.objects.filter(usuario=request.user, inicio_em__gte=data_limite)
+
+        geral = qs_base.aggregate(
+            total_sessoes=Count("id"),
+            duracao_total=Sum("duracao_seg"),
+            calorias_totais=Sum("calorias")
+        )
+
+        dados_corrida = qs_base.filter(modalidade="corrida").aggregate(
+            sessoes=Count("id"),
+            distancia=Sum("metricas_corrida__distancia_km"),
+            ritmo=Avg("metricas_corrida__ritmo_medio_seg_km")
+        )
+
+        dados_ciclismo = qs_base.filter(modalidade="ciclismo").aggregate(
+            sessoes=Count("id"),
+            distancia=Sum("metricas_ciclismo__distancia_km"),
+            velocidade=Avg("metricas_ciclismo__velocidade_media_kmh")
+        )
+
+        dados_musculacao = qs_base.filter(modalidade="musculacao").aggregate(
+            sessoes=Count("id"),
+            series_totais=Count("series_musculacao__id")
+        )
+
+        response_data = {
+            "periodo_dias": dias,
+            "total_sessoes": geral["total_sessoes"] or 0,
+            "duracao_total_segundos": geral["duracao_total"] or 0,
+            "calorias_totais": geral["calorias_totais"] or 0,
+            "por_modalidade": {
+                "corrida": {
+                    "sessoes": dados_corrida["sessoes"] or 0,
+                    "distancia_total_km": dados_corrida["distancia"] or 0,
+                    "ritmo_medio": dados_corrida["ritmo"] or 0,
+                },
+                "ciclismo": {
+                    "sessoes": dados_ciclismo["sessoes"] or 0,
+                    "distancia_total_km": dados_ciclismo["distancia"] or 0,
+                    "velocidade_media": dados_ciclismo["velocidade"] or 0,
+                },
+                "musculacao": {
+                    "sessoes": dados_musculacao["sessoes"] or 0,
+                    "series_totais": dados_musculacao["series_totais"] or 0,
+                }
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
