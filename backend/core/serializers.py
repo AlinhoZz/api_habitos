@@ -349,6 +349,10 @@ class ChangePasswordSerializer(serializers.Serializer):
                 "A senha atual fornecida está incorreta. Não foi possível alterar a senha."
             )
         
+        if data.get('senha_atual') == data.get('nova_senha'):
+            raise serializers.ValidationError(
+                {"nova_senha": "A nova senha não pode ser igual à senha atual."})
+        
         if data.get('nova_senha') != data.get('nova_senha_confirmacao'):
             raise serializers.ValidationError(
                 {"nova_senha_confirmacao": "As novas senhas não coincidem."}
