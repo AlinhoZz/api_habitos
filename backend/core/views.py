@@ -406,22 +406,30 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def streaks(self, request, pk=None):
-        meta = self.get_object()   
+        meta = self.get_object()
+
         datas_concluidas = (
             meta.marcacoes
             .filter(concluido=True)
             .order_by('data')
             .values_list('data', flat=True)
             .distinct()
-        )     
-        datas = list(datas_concluidas)
+        )
+
+        datas = sorted(list({
+            (d.date() if isinstance(d, datetime) else d) 
+            for d in datas_concluidas 
+            if d is not None
+        }))
+        
+        if datas:
+            print(f"DEBUG STREAKS - Tipo do dado: {type(datas[0])} - Valor: {datas[0]}")
 
         if not datas:
             return Response({'streak_atual': 0, 'streak_maximo': 0})
-        
+
         streak_maximo = 0
         current_run = 0
-
         ultima_data_processada = None
 
         for data in datas:
@@ -432,22 +440,25 @@ class MetaHabitoViewSet(viewsets.ModelViewSet):
             else:
                 streak_maximo = max(streak_maximo, current_run)
                 current_run = 1
-        ultima_data_processada = data
-
+            
+            ultima_data_processada = data
+        
         streak_maximo = max(streak_maximo, current_run)
 
         streak_atual = 0
         hoje = timezone.now().date()
-        ultima_data_registrada = datas[-1]
-
-        if ultima_data_registrada == hoje or ultima_data_registrada == hoje - timedelta(days=1):
-            streak_atual = 1
-            for i in range(len(datas) - 2, -1, -1):
-                if datas[i+1] == datas[i] + timedelta(days=1):
-                    streak_atual += 1
-                else:
-                    break      
-
+        
+        if datas:
+            ultima_data_registrada = datas[-1]
+            
+            if ultima_data_registrada == hoje or ultima_data_registrada == hoje - timedelta(days=1):
+                streak_atual = 1
+                for i in range(len(datas) - 2, -1, -1):
+                    if datas[i+1] == datas[i] + timedelta(days=1):
+                        streak_atual += 1
+                    else:
+                        break
+        
         return Response({
             'streak_atual': streak_atual,
             'streak_maximo': streak_maximo
