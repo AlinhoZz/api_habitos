@@ -1,10 +1,11 @@
 from typing import Any, cast
 
 from django.utils import timezone
+from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
-from django.utils import timezone
-from django.db.models import Sum, Avg, Count
+from django.db import transaction
+from django.db.models import Sum, Avg, Count, Q
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -202,12 +203,48 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["modalidade", "observacoes"]
 
+    # --- HELPER: cria/atualiza marcações ligadas à sessão ---
+    def _criar_ou_atualizar_marcacoes_para_sessao(self, sessao: SessaoAtividade) -> None:
+        data_sessao = sessao.inicio_em.date()
+
+        # metas do mesmo usuário, modalidade e ativas naquela data
+        metas = (
+            MetaHabito.objects
+            .filter(
+                usuario=sessao.usuario,
+                ativo=True,
+                modalidade=sessao.modalidade,
+            )
+            .filter(
+                Q(data_inicio__isnull=True) | Q(data_inicio__lte=data_sessao),
+                Q(data_fim__isnull=True) | Q(data_fim__gte=data_sessao),
+            )
+        )
+
+        for meta in metas:
+            marcacao, created = MarcacaoHabito.objects.get_or_create(
+                usuario=sessao.usuario,
+                meta=meta,
+                data=data_sessao,
+                defaults={"concluido": True, "sessao": sessao},
+            )
+            if not created:
+                # se já existia, garante que fique marcada como concluída e ligada à sessão
+                if (not marcacao.concluido) or (marcacao.sessao is None):
+                    marcacao.concluido = True
+                    marcacao.sessao = sessao
+                    marcacao.save(update_fields=["concluido", "sessao"])
+
+    # --- CREATE / UPDATE ---
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
-         
+        sessao = serializer.save(usuario=self.request.user)
+        self._criar_ou_atualizar_marcacoes_para_sessao(sessao)
+
     def perform_update(self, serializer):
-        serializer.save(usuario=self.request.user)
-        
+        sessao = serializer.save(usuario=self.request.user)
+        self._criar_ou_atualizar_marcacoes_para_sessao(sessao)
+
+    # --- LIST / FILTRO ---
     def get_queryset(self):
         request = cast(Request, self.request)
 
@@ -242,37 +279,43 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    # --- DELETE ---
     def destroy(self, request, *args, **kwargs):
         """
         Regra de negócio para DELETE de sessão:
-        - Se a sessão tiver métricas de corrida, de ciclismo, séries de musculação
-          ou marcações de hábito associadas, o DELETE é bloqueado.
-        - O usuário precisa remover/ajustar esses dados antes.
+
+        - Se a sessão tiver métricas de corrida, métricas de ciclismo
+          ou séries de musculação associadas, o DELETE é bloqueado.
+        - Marcações de hábito vinculadas à sessão NÃO bloqueiam o DELETE:
+          elas são apagadas junto com a sessão.
         """
         instance = self.get_object()
 
-        tem_metricas_corrida = hasattr(instance, "metricas_corrida")
-        tem_metricas_ciclismo = hasattr(instance, "metricas_ciclismo")
+        tem_metricas_corrida = MetricasCorrida.objects.filter(sessao=instance).exists()
+        tem_metricas_ciclismo = MetricasCiclismo.objects.filter(sessao=instance).exists()
         tem_series = instance.series_musculacao.exists()
-        tem_marcacoes = instance.marcacoes.exists()
 
-        if tem_metricas_corrida or tem_metricas_ciclismo or tem_series or tem_marcacoes:
+        if tem_metricas_corrida or tem_metricas_ciclismo or tem_series:
             return Response(
                 {
                     "detail": (
                         "Não é possível excluir a sessão pois existem dados associados "
-                        "(métricas, séries ou marcações de hábito). "
+                        "(métricas ou séries de musculação). "
                         "Remova ou ajuste esses dados antes de excluir a sessão."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        MarcacaoHabito.objects.filter(sessao=instance).delete()
+
         self.perform_destroy(instance)
 
         return Response(
             {"detail": "Sessão excluída com sucesso."},
             status=status.HTTP_200_OK,
         )
+
 
 class MetricasCorridaViewSet(viewsets.ModelViewSet):
     queryset = MetricasCorrida.objects.select_related("sessao").all()
@@ -589,19 +632,19 @@ class DashboardResumoView(APIView):
         )
 
         dados_corrida = qs_base.filter(modalidade="corrida").aggregate(
-            sessoes=Count("id"),
+            sessoes=Count("id", distinct=True),
             distancia=Sum("metricas_corrida__distancia_km"),
             ritmo=Avg("metricas_corrida__ritmo_medio_seg_km")
         )
 
         dados_ciclismo = qs_base.filter(modalidade="ciclismo").aggregate(
-            sessoes=Count("id"),
+            sessoes=Count("id", distinct=True),
             distancia=Sum("metricas_ciclismo__distancia_km"),
             velocidade=Avg("metricas_ciclismo__velocidade_media_kmh")
         )
 
         dados_musculacao = qs_base.filter(modalidade="musculacao").aggregate(
-            sessoes=Count("id"),
+            sessoes=Count("id", distinct=True),   
             series_totais=Count("series_musculacao__id")
         )
 

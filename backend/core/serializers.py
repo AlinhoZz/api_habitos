@@ -115,6 +115,7 @@ class MetricasCiclismoSerializer(serializers.ModelSerializer):
         return sessao
 
 class SerieMusculacaoSerializer(serializers.ModelSerializer):
+    ordem_serie = serializers.IntegerField(required=False, allow_null=True)
     class Meta:
         model = SerieMusculacao
         fields = [
