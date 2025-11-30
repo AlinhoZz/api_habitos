@@ -212,6 +212,21 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
     def validate(self, data):
         is_update = self.instance is not None
         
+        campos_numericos = [
+            'frequencia_semana', 
+            'distancia_meta_km', 
+            'duracao_meta_min', 
+            'sessoes_meta'
+        ]
+
+        for campo in campos_numericos:
+            valor = data.get(campo, getattr(self.instance, campo, None) if is_update else None)
+            
+            if valor is not None and valor < 0:
+                raise serializers.ValidationError(
+                    {campo: "O valor não pode ser negativo."}
+                )
+
         data_inicio = data.get('data_inicio', self.instance.data_inicio if is_update else None) 
         data_fim = data.get('data_fim', self.instance.data_fim if is_update else None) 
         
