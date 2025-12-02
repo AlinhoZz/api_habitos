@@ -203,11 +203,9 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["modalidade", "observacoes"]
 
-    # --- HELPER: cria/atualiza marcações ligadas à sessão ---
     def _criar_ou_atualizar_marcacoes_para_sessao(self, sessao: SessaoAtividade) -> None:
         data_sessao = sessao.inicio_em.date()
 
-        # metas do mesmo usuário, modalidade e ativas naquela data
         metas = (
             MetaHabito.objects
             .filter(
@@ -229,13 +227,11 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
                 defaults={"concluido": True, "sessao": sessao},
             )
             if not created:
-                # se já existia, garante que fique marcada como concluída e ligada à sessão
                 if (not marcacao.concluido) or (marcacao.sessao is None):
                     marcacao.concluido = True
                     marcacao.sessao = sessao
                     marcacao.save(update_fields=["concluido", "sessao"])
 
-    # --- CREATE / UPDATE ---
     def perform_create(self, serializer):
         sessao = serializer.save(usuario=self.request.user)
         self._criar_ou_atualizar_marcacoes_para_sessao(sessao)
@@ -244,7 +240,6 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
         sessao = serializer.save(usuario=self.request.user)
         self._criar_ou_atualizar_marcacoes_para_sessao(sessao)
 
-    # --- LIST / FILTRO ---
     def get_queryset(self):
         request = cast(Request, self.request)
 
@@ -279,7 +274,6 @@ class SessaoAtividadeViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    # --- DELETE ---
     def destroy(self, request, *args, **kwargs):
         """
         Regra de negócio para DELETE de sessão:
@@ -547,12 +541,10 @@ class MarcacaoHabitoViewSet(viewsets.ModelViewSet):
         .order_by("data", "id")
         )
 
-        # Filtro por meta
         meta_id = request.query_params.get("meta_id")
         if meta_id:
             qs = qs.filter(meta_id=meta_id)
 
-        # Filtro por intervalo de datas
         data_inicio_str = request.query_params.get("data_inicio")
         data_fim_str = request.query_params.get("data_fim")
 
@@ -584,7 +576,7 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request: Request) -> Response:
-        user = request.user  # vem do JWTAuthentication
+        user = request.user
         serializer = UsuarioSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
     

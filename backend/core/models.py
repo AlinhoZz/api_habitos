@@ -1,6 +1,5 @@
 from django.db import models
 
-# Create your models here.
 from django.db import models
 
 
@@ -30,7 +29,6 @@ class Usuario(models.Model):
         """
         return True
     
-    # Opcionais, mas boas práticas:
     @property
     def is_staff(self):
         return False

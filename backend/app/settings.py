@@ -3,15 +3,12 @@ import os
 from typing import List
 import environ
 
-# Caminhos
-BASE_DIR = Path(__file__).resolve().parent.parent  # .../backend
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Carregar .env se existir
 _env_file = BASE_DIR.parent / ".env"
 if _env_file.exists():
     environ.Env.read_env(str(_env_file))
 
-# Helpers de env
 def get_bool(name: str, default: bool = False) -> bool:
     v = os.getenv(name)
     if v is None:
@@ -24,15 +21,12 @@ def get_csv(name: str, default: str = "") -> List[str]:
         return []
     return [item.strip() for item in raw.split(",") if item.strip()]
 
-# Segurança / Debug
 SECRET_KEY: str = os.getenv("SECRET_KEY", "unsafe-secret")
 DEBUG: bool = get_bool("DEBUG", False)
 
-# Hosts
 _hosts = get_csv("ALLOWED_HOSTS", "*")
 ALLOWED_HOSTS: List[str] = _hosts or ["*"]
 
-# Apps
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -45,7 +39,6 @@ INSTALLED_APPS = [
     "rest_framework",
 ]
 
-# Middleware
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -65,13 +58,9 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-
-
-# URLs / WSGI
 ROOT_URLCONF = "app.urls"
 WSGI_APPLICATION = "app.wsgi.application"
 
-# Templates
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -88,7 +77,6 @@ TEMPLATES = [
     },
 ]
 
-# Banco de Dados (PostgreSQL)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -100,17 +88,14 @@ DATABASES = {
     }
 }
 
-# Localização / Tempo
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE: str = os.getenv("DJANGO_TIME_ZONE", "America/Recife")
 USE_I18N = True
 USE_TZ = True
 
-# Arquivos estáticos
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Padrões
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
