@@ -40,7 +40,6 @@ class Usuario(models.Model):
         return False
 
     class Meta:
-        managed = False
         db_table = "usuarios"
 
     def __str__(self) -> str:
@@ -58,7 +57,6 @@ class Exercicio(models.Model):
     equipamento = models.CharField(max_length=60, blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = "exercicios"
 
     def __str__(self) -> str:
@@ -94,7 +92,6 @@ class SessaoAtividade(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        managed = False
         db_table = "sessoes_atividade"
         indexes = [
             models.Index(
@@ -128,7 +125,6 @@ class MetricasCorrida(models.Model):
     fc_media = models.SmallIntegerField(blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = "metricas_corrida"
 
     def __str__(self) -> str:
@@ -152,7 +148,6 @@ class MetricasCiclismo(models.Model):
     fc_media = models.SmallIntegerField(blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = "metricas_ciclismo"
 
     def __str__(self) -> str:
@@ -187,7 +182,6 @@ class SerieMusculacao(models.Model):
     )
 
     class Meta:
-        managed = False
         db_table = "series_musculacao"
         indexes = [
             models.Index(
@@ -236,7 +230,6 @@ class MetaHabito(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        managed = False
         db_table = "metas_habito"
 
     def __str__(self) -> str:
@@ -274,7 +267,6 @@ class MarcacaoHabito(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        managed = False
         db_table = "marcacoes_habito"
         unique_together = ("meta", "data")
 
