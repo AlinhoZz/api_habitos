@@ -92,7 +92,15 @@ class SessaoAtividade(models.Model):
     calorias = models.IntegerField(blank=True, null=True)
     observacoes = models.TextField(blank=True, null=True)
     criado_em = models.DateTimeField(auto_now_add=True)
-
+    origem = models.CharField(
+        max_length=20,
+        default="manual",
+    )
+    strava_activity_id = models.BigIntegerField(
+        blank=True,
+        null=True,
+        unique=True,
+    )
     class Meta:
         managed = False
         db_table = "sessoes_atividade"
@@ -280,3 +288,27 @@ class MarcacaoHabito(models.Model):
 
     def __str__(self) -> str:
         return f"{self.meta} em {self.data}"
+class ContaStrava(models.Model):
+    """
+    Vincula um usuário a uma conta Strava.
+    Tabela: contas_strava
+    """
+    id = models.BigAutoField(primary_key=True)
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        db_column="usuario_id",
+        related_name="conta_strava",
+    )
+    athlete_id = models.BigIntegerField()
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    token_expires_at = models.DateTimeField()
+    last_sync = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = "contas_strava"
+
+    def __str__(self) -> str:
+        return f"Strava de {self.usuario.nome}"

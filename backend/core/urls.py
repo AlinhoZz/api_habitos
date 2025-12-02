@@ -17,6 +17,8 @@ from .views import (
     MeView,
     RefreshTokenView,
     DashboardResumoView,
+    StravaConnectView,
+    StravaSyncView, 
 )
 
 router = DefaultRouter()
@@ -37,5 +39,15 @@ urlpatterns = [
     path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("auth/refresh/", RefreshTokenView.as_view(), name="auth-refresh"),
     path("api/dashboard/resumo/", DashboardResumoView.as_view(), name="dashboard-resumo"),
+     path(
+        "integracoes/strava/conectar/",
+        StravaConnectView.as_view(),
+        name="strava-conectar",
+    ),
+    path(
+        "integracoes/strava/sync/",
+        StravaSyncView.as_view(),
+        name="strava-sync",
+    ),
     path("api/", include(router.urls)),
 ]
