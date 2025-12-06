@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
+from rest_framework.throttling import UserRateThrottle
 
 from datetime import datetime, timedelta
 import jwt
@@ -665,9 +666,22 @@ class DashboardResumoView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
-    
+class AIChatThrottle(UserRateThrottle):
+    scope = 'ai_chat'
+
+    def allow_request(self, request, view):
+        is_allowed = super().allow_request(request, view)
+        
+        ident = self.get_cache_key(request, view)
+        
+        print(f"DEBUG THROTTLE: User={request.user} | Key={ident} | Permitido? {is_allowed}")
+        
+        return is_allowed
+
 class FitnessAIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    throttle_classes = [AIChatThrottle]
 
     def post(self, request: Request) -> Response:
         pergunta = request.data.get("pergunta")
