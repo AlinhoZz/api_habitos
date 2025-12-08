@@ -13,9 +13,11 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
+from rest_framework.throttling import UserRateThrottle
 
 from datetime import datetime, timedelta
 import jwt
+import google.generativeai as genai
 from django.conf import settings
 
 from .authentication import create_jwt_for_user
@@ -664,3 +666,97 @@ class DashboardResumoView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+class AIChatThrottle(UserRateThrottle):
+    scope = 'ai_chat'
+
+    def allow_request(self, request, view):
+        is_allowed = super().allow_request(request, view)
+        
+        ident = self.get_cache_key(request, view)
+        
+        print(f"DEBUG THROTTLE: User={request.user} | Key={ident} | Permitido? {is_allowed}")
+        
+        return is_allowed
+
+class FitnessAIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    throttle_classes = [AIChatThrottle]
+
+    def post(self, request: Request) -> Response:
+        pergunta = request.data.get("pergunta")
+        nome_exercicio = request.data.get("nome_exercicio")
+        contexto_exercicio = request.data.get("contexto_exercicio", "")
+        eh_primeira_msg = request.data.get("primeira_mensagem", False)
+        historico = request.data.get("historico", [])
+        
+        nome_usuario = getattr(request.user, 'nome', 'Atleta')
+
+        if not pergunta or not nome_exercicio:
+            return Response(
+                {"erro": "Os campos 'pergunta' e 'nome_exercicio' são obrigatórios."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not settings.GEMINI_API_KEY:
+            return Response(
+                {"erro": "Chave de API do Gemini não configurada."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        try:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+
+            system_instruction = f"""
+            Você é o O2, um treinador pessoal parceiro, experiente e especialista em biomecânica do app '+Fôlego'.
+            
+            CONTEXTO ATUAL:
+            Aluno: {nome_usuario}
+            Exercício: {nome_exercicio}
+            Ficha Técnica: {contexto_exercicio}
+
+            REGRAS DE SEGURANÇA:
+            1. VOCÊ NÃO É MÉDICO;
+            2. Responda em português do Brasil;
+            3. Não perca o foco do assunto.
+
+            DIRETRIZES DE PERSONALIDADE (IMPORTANTE):
+            1. TOM DE VOZ: Natural, humano e direto. Imagine que você está falando pelo WhatsApp. Evite formalidades robóticas.
+            2. FORMATAÇÃO: EVITE LISTAS e TÓPICOS (bullet points) a todo custo, a menos que seja um passo-a-passo estrito. Prefira parágrafos curtos e fluidos.
+            3. POSTURA: Seja motivador, mas responsável. Se o aluno relatar dor aguda, dê o alerta de segurança imediatamente, mas com acolhimento (sem parecer uma bula de remédio).
+            4. FOCO: Responda a dúvida de forma objetiva. Não dê palestras longas se a pergunta for simples.
+            """
+
+            model = genai.GenerativeModel(
+                'models/gemini-2.5-flash',
+                system_instruction=system_instruction
+            )
+
+            gemini_history = []
+            for msg in historico:
+                role = "user" if msg.get('role') == 'user' else "model"
+                
+                content = msg.get('content', '').replace("⚠️ ", "")
+                
+                gemini_history.append({
+                    "role": role,
+                    "parts": [content]
+                })
+
+            chat = model.start_chat(history=gemini_history)
+
+            msg_atual = pergunta
+            
+            if eh_primeira_msg:
+                msg_atual = f"[Instrução de sistema: Comece a resposta saudando o {nome_usuario} de forma breve e animada como o O2]. " + pergunta
+
+            response = chat.send_message(msg_atual)
+            
+            return Response({"resposta": response.text}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Erro no Gemini: {e}")
+            return Response(
+                {"erro": f"Erro ao processar inteligência: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
