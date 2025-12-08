@@ -728,7 +728,7 @@ class FitnessAIView(APIView):
             """
 
             model = genai.GenerativeModel(
-                'models/gemini-2.0-flash',
+                'models/gemini-2.5-flash',
                 system_instruction=system_instruction
             )
 
