@@ -21,6 +21,9 @@ services:
   web:
     build:
       context: ./backend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     env_file: .env
     depends_on:
       db:
