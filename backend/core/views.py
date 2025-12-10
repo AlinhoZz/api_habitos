@@ -691,6 +691,15 @@ class StravaConnectView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # DEBUG opcional – pode remover depois
+        print("DEBUG STRAVA CONNECT - code recebido:", code)
+        print(
+            "DEBUG STRAVA CONNECT - client_id:",
+            settings.STRAVA_CLIENT_ID,
+            "| redirect_uri:",
+            getattr(settings, "STRAVA_REDIRECT_URI", None),
+        )
+
         try:
             resp = requests.post(
                 "https://www.strava.com/oauth/token",
@@ -699,6 +708,8 @@ class StravaConnectView(APIView):
                     "client_secret": settings.STRAVA_CLIENT_SECRET,
                     "code": code,
                     "grant_type": "authorization_code",
+                    # 👇 força a bater exatamente com o redirect configurado no app
+                    "redirect_uri": settings.STRAVA_REDIRECT_URI,
                 },
                 timeout=15,
             )
@@ -710,6 +721,10 @@ class StravaConnectView(APIView):
                 },
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+        # DEBUG da resposta do Strava – importantíssimo
+        print("DEBUG STRAVA TOKEN EXCHANGE - status:", resp.status_code)
+        print("DEBUG STRAVA TOKEN EXCHANGE - body:", resp.text)
 
         if resp.status_code != 200:
             return Response(
@@ -758,7 +773,6 @@ class StravaConnectView(APIView):
         try:
             expires_at_ts = int(expires_at_raw)
             expires_at = datetime.fromtimestamp(expires_at_ts, tz=dt_timezone.utc)
-
         except Exception as exc:
             return Response(
                 {
