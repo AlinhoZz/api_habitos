@@ -38,7 +38,9 @@ class SessaoAtividadeSerializer(serializers.ModelSerializer):
             "calorias",
             "observacoes",
             "criado_em",
+            "origem",
         ]
+        read_only_fields = ["origem"]
     def validate_duracao_seg(self, value):
         if value is not None and value < 0:
             raise serializers.ValidationError("A duração não pode ser negativa.")

@@ -17,6 +17,8 @@ from .views import (
     MeView,
     RefreshTokenView,
     DashboardResumoView,
+    StravaConnectView,
+    StravaSyncView, 
     FitnessAIView,
 )
 
@@ -39,6 +41,16 @@ urlpatterns = [
     path("auth/refresh/", RefreshTokenView.as_view(), name="auth-refresh"),
 
     path("api/dashboard/resumo/", DashboardResumoView.as_view(), name="dashboard-resumo"),
+     path(
+        "integracoes/strava/conectar/",
+        StravaConnectView.as_view(),
+        name="strava-conectar",
+    ),
+    path(
+        "integracoes/strava/sync/",
+        StravaSyncView.as_view(),
+        name="strava-sync",
+    ),
 
     path("api/ai-coach/", FitnessAIView.as_view(), name="ai-coach"),
     

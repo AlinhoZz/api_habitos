@@ -22,8 +22,12 @@ CREATE TABLE sessoes_atividade (
   calorias INTEGER CHECK (calorias >= 0),
   observacoes TEXT,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+  origem VARCHAR(20) NOT NULL DEFAULT 'manual',
+  strava_activity_id BIGINT UNIQUE,
   CONSTRAINT ck_sessoes_modalidade CHECK (modalidade IN ('corrida','ciclismo','musculacao'))
 );
+
+
 
 CREATE INDEX idx_sessoes_usuario_tempo ON sessoes_atividade(usuario_id, inicio_em DESC);
 CREATE INDEX idx_sessoes_modalidade ON sessoes_atividade(modalidade);
@@ -86,3 +90,19 @@ CREATE TABLE marcacoes_habito (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (meta_id, data)
 );
+
+CREATE TABLE contas_strava (
+    id BIGSERIAL PRIMARY KEY,
+    usuario_id BIGINT NOT NULL UNIQUE,         -- OneToOne com usuarios
+    athlete_id BIGINT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    token_expires_at TIMESTAMPTZ NOT NULL,
+    last_sync TIMESTAMPTZ NULL
+);
+
+ALTER TABLE contas_strava
+ADD CONSTRAINT contas_strava_usuario_fk
+FOREIGN KEY (usuario_id)
+REFERENCES usuarios (id)
+ON DELETE CASCADE;

@@ -1,7 +1,7 @@
 from typing import Any, cast
 
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
 from django.db import transaction
@@ -15,8 +15,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.throttling import UserRateThrottle
 
-from datetime import datetime, timedelta
 import jwt
+import requests
+
 import google.generativeai as genai
 from django.conf import settings
 
@@ -30,6 +31,7 @@ from .models import (
     SerieMusculacao,
     MetaHabito,
     MarcacaoHabito,
+    ContaStrava,
 )
 from .serializers import (
     UsuarioSerializer,
@@ -45,6 +47,7 @@ from .serializers import (
     LoginSerializer,
     UsuarioUpdateSerializer,
 )
+from .strava_service import sincronizar_atividades_strava
 
 REFRESH_TOKEN_LIFETIME_DAYS = 7
 
@@ -155,7 +158,8 @@ class RefreshTokenView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request: Request) -> Response:
-        refresh_token = request.data.get("refresh_token")
+        data_in = cast(dict[str, Any], request.data)
+        refresh_token = data_in.get("refresh_token")
 
         if not refresh_token:
             raise ValidationError({"refresh_token": "Este campo é obrigatório."})
@@ -663,8 +667,154 @@ class DashboardResumoView(APIView):
                     "series_totais": dados_musculacao["series_totais"] or 0,
                 }
             }
+          
         }
+        
+      
 
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+class StravaConnectView(APIView):
+    """
+    Recebe o 'code' do Strava e cria/atualiza a ContaStrava do usuário.
+    POST /integracoes/strava/conectar/
+    Body: { "code": "..." }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        data_in = cast(dict[str, Any], request.data)
+        code = data_in.get("code")
+        if not code:
+            return Response(
+                {"detail": "Código de autorização (code) é obrigatório."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            resp = requests.post(
+                "https://www.strava.com/oauth/token",
+                data={
+                    "client_id": settings.STRAVA_CLIENT_ID,
+                    "client_secret": settings.STRAVA_CLIENT_SECRET,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                },
+                timeout=15,
+            )
+        except requests.RequestException as exc:
+            return Response(
+                {
+                    "detail": "Erro de rede ao falar com a API do Strava.",
+                    "error": str(exc),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if resp.status_code != 200:
+            return Response(
+                {
+                    "detail": "Erro ao trocar código por token no Strava.",
+                    "raw": resp.text,
+                    "status_code": resp.status_code,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            data = resp.json()
+        except ValueError:
+            return Response(
+                {
+                    "detail": "Resposta inesperada do Strava (não é JSON).",
+                    "raw": resp.text,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        athlete = data.get("athlete")
+        access_token = data.get("access_token")
+        refresh_token = data.get("refresh_token")
+        expires_at_raw = data.get("expires_at")
+
+        if not athlete or "id" not in athlete:
+            return Response(
+                {
+                    "detail": "Resposta do Strava não contém dados de atleta.",
+                    "raw": data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if access_token is None or refresh_token is None or expires_at_raw is None:
+            return Response(
+                {
+                    "detail": "Resposta do Strava não contém tokens esperados.",
+                    "raw": data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            expires_at_ts = int(expires_at_raw)
+            expires_at = datetime.fromtimestamp(expires_at_ts, tz=dt_timezone.utc)
+
+        except Exception as exc:
+            return Response(
+                {
+                    "detail": "Não foi possível interpretar o expires_at do Strava.",
+                    "expires_at_raw": expires_at_raw,
+                    "error": str(exc),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ContaStrava.objects.update_or_create(
+                usuario=request.user,
+                defaults={
+                    "athlete_id": athlete["id"],
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "token_expires_at": expires_at,
+                },
+            )
+        except Exception as exc:
+            return Response(
+                {
+                    "detail": "Erro ao salvar dados da conta Strava no banco.",
+                    "error": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            {"detail": "Conta Strava conectada com sucesso."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class StravaSyncView(APIView):
+    """
+    Sincroniza atividades do Strava para o usuário logado.
+    POST /integracoes/strava/sync/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        try:
+            conta = request.user.conta_strava
+        except ContaStrava.DoesNotExist:
+            return Response(
+                {"detail": "Você ainda não conectou sua conta Strava."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        qtd = sincronizar_atividades_strava(conta)
+        return Response(
+            {"detail": f"{qtd} atividades importadas do Strava."},
+            status=status.HTTP_200_OK,
+        )
         return Response(response_data, status=status.HTTP_200_OK)
 class AIChatThrottle(UserRateThrottle):
     scope = 'ai_chat'

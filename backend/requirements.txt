@@ -6,4 +6,5 @@ gunicorn>=21.2
 uvicorn>=0.30
 PyJWT>=2.9,<3.0
 django-cors-headers>=4.4,<5.0
+requests>=2.31,<3.0
 google-generativeai>=0.8.3
