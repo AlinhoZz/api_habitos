@@ -14,9 +14,6 @@ from .models import (
 )
 
 
-# ---------- SERIALIZERS DE MODELOS ----------
-
-
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
@@ -27,8 +24,6 @@ class ExercicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exercicio
         fields = ["id", "nome", "grupo_muscular", "equipamento"]
-
-# =================== Danilo e Alisson =====================
 
 class SessaoAtividadeSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -190,8 +185,7 @@ class SerieMusculacaoSerializer(serializers.ModelSerializer):
             validated_data["ordem_serie"] = proxima_ordem
 
         return super().create(validated_data)
-    
-# =================== Meta Hábito =======================
+
 class MetaHabitoSerializer(serializers.ModelSerializer):
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
@@ -252,10 +246,8 @@ class MetaHabitoSerializer(serializers.ModelSerializer):
             )
             
         return data    
-# =================== Carlos e Abelardo =====================
 
 class MarcacaoHabitoSerializer(serializers.ModelSerializer):
-    # Usuario sempre vem do request, nunca do body
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -282,22 +274,18 @@ class MarcacaoHabitoSerializer(serializers.ModelSerializer):
         if not user or not meta or not data:
             return attrs
 
-        # 1) Meta precisa ser do usuário logado
         if meta.usuario_id != user.id:
             raise serializers.ValidationError(
                 {"meta": "Você só pode marcar dias de metas que são suas."}
             )
 
-        # 2) Se houver sessão, também precisa ser do usuário logado
         if sessao and sessao.usuario_id != user.id:
             raise serializers.ValidationError(
                 {"sessao": "Você só pode vincular sessões que são suas."}
             )
 
-        # 3) Respeitar unique_together (meta, data)
         qs = MarcacaoHabito.objects.filter(meta=meta, data=data)
 
-        # Se for update, ignora a própria instância
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
 
@@ -307,8 +295,6 @@ class MarcacaoHabitoSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-
-# ---------- SERIALIZERS DE AUTENTICAÇÃO ----------
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -384,7 +370,6 @@ class ChangePasswordSerializer(serializers.Serializer):
         assert isinstance(self.validated_data, dict)
         nova_senha = self.validated_data['nova_senha']
         
-        # Usa make_password para gerar o hash seguro da nova senha
         user.hash_senha = make_password(nova_senha)
         user.save()
         
